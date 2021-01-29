@@ -5,7 +5,6 @@ import os
 import sys
 import json
 import hashlib
-import pservers.plugin
 
 
 """
@@ -19,12 +18,12 @@ we don't support git-protocol since it does not support one-server-multiple-doma
 """
 
 
-def main():
-    serverId = pservers.plugin.params["server-id"]
-    domainName = pservers.plugin.params["domain-name"]
-    dataDir = pservers.plugin.params["data-directory"]
-    tmpDir = pservers.plugin.params["temp-directory"]
-    webRootDir = pservers.plugin.params["webroot-directory"]
+def start(params):
+    serverId = params["server-id"]
+    domainName = params["domain-name"]
+    dataDir = params["data-directory"]
+    tmpDir = params["temp-directory"]
+    webRootDir = params["webroot-directory"]
 
     # (username, scope, password)
     userInfo = ("write", "klaus", "write")
@@ -56,13 +55,18 @@ def main():
     buf += 'WSGIChunkedRequest On\n'
     buf += '\n'
 
-    # dump result
-    json.dump({
-        "module-dependencies": {
-            "wsgi_module": "mod_wsgi.so",
-        },
+    cfg = {
+        "module-dependencies": [
+            "mod_wsgi.so",
+        ],
         "config-segment": buf,
-    }, sys.stdout)
+    }
+    privateData = None
+    return (cfg, privateData)
+
+
+def stop(private_data):
+    pass
 
 
 class _Util:
@@ -79,9 +83,3 @@ class _Util:
             for ui in userInfoList:
                 f.write(ui[0] + ':' + ui[1] + ':' + hashlib.md5(':'.join(ui).encode("iso8859-1")).hexdigest())
                 f.write('\n')
-
-
-###############################################################################
-
-if __name__ == "__main__":
-    main()
