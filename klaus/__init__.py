@@ -6,13 +6,17 @@ import hashlib
 
 
 """
-access-method:
-    http-ui r
-    http-ui rw             (user: rw)
-    git-over-http r
-    git-over-http rw       (user: rw)
+Access:
+  PROTOCOL        URL             USER            EFFECT
+  http            http://.../                     klaus-ui,read-only
+  http            http://.../     ro              klaus-ui,read-only
+  http            http://.../     rw              klaus-ui,read-only(FIXME)
+  git-over-http   http://.../                     read-write(FIXME)
+  git-over-http   http://.../     ro              read-write(FIXME)
+  git-over-http   http://.../     rw              read-write
 
-we don't support git-protocol since it does not support one-server-multiple-domain.
+Notes:
+  1. We don't support git-protocol since it does not support one-server-multiple-domain.
 """
 
 
