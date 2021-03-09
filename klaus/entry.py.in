@@ -1,0 +1,56 @@
+#!/usr/bin/python3
+# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
+
+import re
+from base64 import b64decode
+from klaus.contrib.wsgi_autoreloading import make_autoreloading_app
+
+
+# Ensures only http-basic-auth user "rw" (no password verification) can do git-push.
+class MyAuthMiddleWare:
+
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+        self.realm = "klaus"
+        self.username = "rw"
+        self.urlPattern = re.compile(r"^/(~[^/]+/)?[^/]+/(info/refs\?service=git-receive-pack|git-receive-pack)$")      # git push URLs, from http://github.com/jonashaag/klaus
+
+    def __call__(self, environ, start_response):
+        environ["httpauth.uri"] = self._reconstruct_uri(environ)
+        if self.urlPattern.match(environ['httpauth.uri']) and self._get_username(environ.get('HTTP_AUTHORIZATION')) != self.username:
+            # URL is secured and user hasn't sent authentication/wrong credentials.
+            return self._need_login(environ, start_response)
+        else:
+            # Wave-through to real WSGI app.
+            return self.wsgi_app(environ, start_response)
+
+    def _reconstruct_uri(environ):
+        """
+        Reconstruct the relative part of the request URI. I.e. if the requested URL
+        is https://foo.bar/spam?eggs, ``reconstruct_uri`` returns ``'/spam?eggs'``.
+        """
+        uri = environ.get('SCRIPT_NAME', '') + environ['PATH_INFO']
+        if environ.get('QUERY_STRING'):
+            uri += '?' + environ['QUERY_STRING']
+        return uri
+
+    def _get_username(self, header):
+        if not header:
+            return ""
+        else:
+            _, encoded = header.split(None, 1)
+            decoded = b64decode(encoded).decode('UTF-8')
+            username, password = decoded.split(':', 1)
+            return username
+
+    def _need_login(self, environ, start_response):
+        start_response(
+            '401 Authentication Required',
+            [('WWW-Authenticate', 'Basic realm="%s"' % (self.realm))],
+        )
+        html = '<h1>401 - Authentication Required</h1>'
+        return [html.encode()]
+
+
+application = make_autoreloading_app("%%DATA_DIR%%", "%%SERVER_ID%%", use_smarthttp=True, require_browser_auth=True)
+application = MyAuthMiddleWare(application)
