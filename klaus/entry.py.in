@@ -18,11 +18,19 @@ class MyAuthMiddleWare:
 
     def __init__(self, wsgi_app):
         self.wsgi_app = wsgi_app
+
         self.realm = "klaus"
         self.roUsername = "ro"
         self.rwUsername = "rw"
-        self.gitUrlPattern = re.compile(r"(?x)^/(.*/(HEAD|info/refs|objects/(info/[^/]+|[0-9a-f]{2}/[0-9a-f]{38}|pack/pack-[0-9a-f]{40}\.(pack|idx))|git-(upload|receive)-pack))$")
-        self.gitPushUrlPattern = re.compile(r"^/(~[^/]+/)?[^/]+/(info/refs\?service=git-receive-pack|git-receive-pack)$")
+
+        # from https://stackoverflow.com/questions/26734933/how-to-set-up-git-over-http
+        # from https://stackoverflow.com/questions/34387868/setup-git-over-http-https-with-apache-2-4-server
+        self.gitUrlPattern = r"(?x)^/(.*/(HEAD|info/refs|objects/(info/[^/]+|[0-9a-f]{2}/[0-9a-f]{38}|pack/pack-[0-9a-f]{40}\.(pack|idx))|git-(upload|receive)-pack))$"
+        self.gitUrlPattern = re.compile(self.gitUrlPattern)
+
+        # from https://github.com/jonashaag/klaus/blob/master/klaus/__init__.py
+        self.gitPushUrlPattern = r"^/(~[^/]+/)?[^/]+/(info/refs\?service=git-receive-pack|git-receive-pack)$"
+        self.gitPushUrlPattern = re.compile(self.gitPushUrlPattern)
 
     def __call__(self, environ, start_response):
         url = self._reconstruct_uri(environ)
@@ -48,6 +56,9 @@ class MyAuthMiddleWare:
             else:
                 # no auth header, permit
                 return self.wsgi_app(environ, start_response)
+        else:
+            # permit
+            return self.wsgi_app(environ, start_response)
 
     def _reconstruct_uri(environ):
         """
