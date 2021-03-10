@@ -60,7 +60,7 @@ class MyAuthMiddleWare:
             # permit
             return self.wsgi_app(environ, start_response)
 
-    def _reconstruct_uri(environ):
+    def _reconstruct_uri(self, environ):
         """
         Reconstruct the relative part of the request URI. I.e. if the requested URL
         is https://foo.bar/spam?eggs, ``reconstruct_uri`` returns ``'/spam?eggs'``.
