@@ -6,23 +6,48 @@ from base64 import b64decode
 from klaus.contrib.wsgi_autoreloading import make_autoreloading_app
 
 
-# Ensures only http-basic-auth user "rw" (no password verification) can do git-push.
+#
+# Clients with git-smart-http read priviledge:
+#   1. no-auth
+#   2. http-basic-auth user "ro"
+#   3. http-basic-auth user "rw"
+# Clients with git-smart-http write priviledge:
+#   1. http-basic-auth user "rw"
+#
 class MyAuthMiddleWare:
 
     def __init__(self, wsgi_app):
         self.wsgi_app = wsgi_app
         self.realm = "klaus"
-        self.username = "rw"
-        self.urlPattern = re.compile(r"^/(~[^/]+/)?[^/]+/(info/refs\?service=git-receive-pack|git-receive-pack)$")      # git push URLs, from http://github.com/jonashaag/klaus
+        self.roUsername = "ro"
+        self.rwUsername = "rw"
+        self.gitUrlPattern = re.compile(r"(?x)^/(.*/(HEAD|info/refs|objects/(info/[^/]+|[0-9a-f]{2}/[0-9a-f]{38}|pack/pack-[0-9a-f]{40}\.(pack|idx))|git-(upload|receive)-pack))$")
+        self.gitPushUrlPattern = re.compile(r"^/(~[^/]+/)?[^/]+/(info/refs\?service=git-receive-pack|git-receive-pack)$")
 
     def __call__(self, environ, start_response):
-        environ["httpauth.uri"] = self._reconstruct_uri(environ)
-        if self.urlPattern.match(environ['httpauth.uri']) and self._get_username(environ.get('HTTP_AUTHORIZATION')) != self.username:
-            # URL is secured and user hasn't sent authentication/wrong credentials.
-            return self._need_login(environ, start_response)
-        else:
-            # Wave-through to real WSGI app.
-            return self.wsgi_app(environ, start_response)
+        url = self._reconstruct_uri(environ)
+        if self.gitPushUrlPattern.match(url):
+            if "HTTP_AUTHORIZATION" in environ:
+                if self._get_username(environ["HTTP_AUTHORIZATION"]) == self.rwUsername:
+                    # permit, wave-through to real WSGI app.
+                    return self.wsgi_app(environ, start_response)
+                else:
+                    # deny, response with 401 error
+                    return self._need_login(environ, start_response)
+            else:
+                # no auth header, deny
+                return self._need_login(environ, start_response)
+        elif self.gitUrlPattern.match(url):
+            if "HTTP_AUTHORIZATION" in environ:
+                if self._get_username(environ["HTTP_AUTHORIZATION"]) in [self.roUsername, self.rwUsername]:
+                    # permit
+                    return self.wsgi_app(environ, start_response)
+                else:
+                    # deny
+                    return self._need_login(environ, start_response)
+            else:
+                # no auth header, permit
+                return self.wsgi_app(environ, start_response)
 
     def _reconstruct_uri(environ):
         """
@@ -35,13 +60,10 @@ class MyAuthMiddleWare:
         return uri
 
     def _get_username(self, header):
-        if not header:
-            return ""
-        else:
-            _, encoded = header.split(None, 1)
-            decoded = b64decode(encoded).decode('UTF-8')
-            username, password = decoded.split(':', 1)
-            return username
+        _, encoded = header.split(None, 1)
+        decoded = b64decode(encoded).decode('UTF-8')
+        username, password = decoded.split(':', 1)
+        return username
 
     def _need_login(self, environ, start_response):
         start_response(
