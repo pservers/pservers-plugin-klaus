@@ -85,5 +85,7 @@ class MyAuthMiddleWare:
         return [html.encode()]
 
 
-application = make_autoreloading_app("%%DATA_DIR%%", "%%SERVER_ID%%", use_smarthttp=True, require_browser_auth=True, unauthenticated_push=True)
+application = make_autoreloading_app("%%DATA_DIR%%", "%%SERVER_ID%%",
+                                     use_smarthttp=True,
+                                     unauthenticated_push=True)     # do not make klaus do auth at all
 application = MyAuthMiddleWare(application)
