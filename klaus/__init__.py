@@ -42,7 +42,7 @@ def start(params):
     buf += 'DocumentRoot "%s"\n' % (webRootDir)
     buf += 'WSGIScriptAlias / %s\n' % (wsgiFn)
     buf += 'WSGIChunkedRequest On\n'
-    buf += 'WSGIPassAuth On\n'
+    buf += 'WSGIPassAuthorization On\n'
     buf += '\n'
 
     cfg = {
