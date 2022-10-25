@@ -8,9 +8,9 @@ import pathlib
 """
 Access:
   PROTOCOL        URL             USER            EFFECT
-  http            http://.../                     klaus-ui,read-only
-  http            http://.../     ro              klaus-ui,read-only
-  http            http://.../     rw              klaus-ui,read-only(FIXME)
+  web             http://.../                     klaus-ui,read-only
+  web             http://.../     ro              klaus-ui,read-only
+  web             http://.../     rw              klaus-ui,read-write       (FIXME:read-only currently)
   git-over-http   http://.../                     read-only
   git-over-http   http://.../     ro              read-only
   git-over-http   http://.../     rw              read-write
